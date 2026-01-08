@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ning & Hsiang 記帳 (自由切換版)</title>
+    <title>Ning & Hsiang 記帳 (快速切換版)</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
@@ -40,7 +40,6 @@
             width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
             box-sizing: border-box; font-size: 16px; background: #fff; outline: none;
             transition: border-color 0.2s;
-            margin-bottom: 10px;
         }
         input:focus, select:focus { border-color: var(--primary); }
 
@@ -124,15 +123,22 @@
             margin-top: 15px; font-size: 14px; display: none; border: 1px solid #fecaca;
         }
         
+        /* 設定區塊標籤 */
         .label { font-size: 12px; color: #6b7280; margin-bottom: 4px; display: block; font-weight: 600; }
-        
-        /* 模型選擇器樣式 */
-        .model-selector-container {
+
+        /* 模型選擇區塊 (新樣式) */
+        .model-control {
             margin-top: 15px;
+            background: #f8fafc;
             padding: 10px;
-            background: #f0f9ff;
-            border: 1px solid #bae6fd;
             border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .model-control select {
+            margin-bottom: 0; 
+            border: 1px solid #cbd5e1;
+            font-size: 14px;
+            padding: 8px;
         }
     </style>
 </head>
@@ -141,10 +147,9 @@
     <!-- 設定區 (只放 Key) -->
     <div class="card" id="setup-card">
         <h3>🔑 系統設定</h3>
-        <span class="label">API Key</span>
+        <span class="label">請輸入 API Key (第一次使用需填寫)</span>
         <input type="password" id="api-key" placeholder="貼上 Gemini API Key (AIza...)">
-        <button onclick="saveKey()" class="btn-primary" style="margin-top:10px;">儲存 Key</button>
-        <div style="font-size:12px; color:#666; margin-top:8px;">* Key 只會儲存在您的瀏覽器中</div>
+        <button onclick="saveKey()" class="btn-primary" style="margin-top:5px;">儲存 Key</button>
     </div>
 
     <!-- 上傳區 -->
@@ -165,29 +170,30 @@
         
         <div id="error-msg"></div>
 
-        <!-- 模型選擇器 (移到這裡！) -->
-        <div class="model-selector-container">
-            <span class="label">🧠 使用的 AI 模型 (報錯請切換)</span>
-            <select id="model-select" style="margin-bottom: 0;">
-                <option value="gemini-1.5-flash-002" selected>Gemini 1.5 Flash-002 (推薦)</option>
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash (舊版)</option>
-                <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8b (快速)</option>
-                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (實驗)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (強大)</option>
+        <!-- 🔴 模型選擇區 (移到這裡了！) -->
+        <div class="model-control">
+            <span class="label" style="display:flex; align-items:center; gap:5px;">
+                <i class="ph ph-robot"></i> 選擇 AI 模型 (如果失敗請換一個)
+            </span>
+            <select id="model-select" onchange="saveModelPref()">
+                <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (推薦)</option>
+                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (最新)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (最強大)</option>
             </select>
         </div>
 
         <button onclick="processImage()" class="btn-primary" id="scan-btn" disabled style="margin-top: 15px; opacity: 0.6;">
             <span class="spinner" id="spinner"></span>
-            <span id="btn-text">🤖 開始辨識</span>
+            <span id="btn-text">🤖 AI 辨識</span>
         </button>
 
         <button onclick="loadDemo()" class="btn-outline" style="font-size: 13px; padding: 10px;">
             🧪 載入測試資料
         </button>
         
+        <!-- 快速修改 Key 的連結 -->
         <div style="text-align: center; margin-top: 10px;">
-            <a href="#" onclick="showSettings()" style="font-size: 12px; color: #6b7280; text-decoration: underline;">修改 API Key</a>
+            <a href="#" onclick="showSettings()" style="font-size: 12px; color: #94a3b8; text-decoration: none;">更換 API Key</a>
         </div>
     </div>
 
@@ -235,22 +241,18 @@
     // 初始化
     window.onload = () => {
         const key = localStorage.getItem("gemini_key_v2");
-        const model = localStorage.getItem("gemini_model"); // 讀取上次選的模型
+        const model = localStorage.getItem("gemini_model") || "gemini-1.5-flash"; 
+        
+        // 設定下拉選單
+        const select = document.getElementById("model-select");
+        if([...select.options].some(o => o.value === model)) {
+            select.value = model;
+        }
         
         if(key) {
             document.getElementById("api-key").value = key;
             document.getElementById("setup-card").style.display = "none";
         }
-        
-        // 恢復上次使用的模型，如果沒有就預設
-        if(model) {
-            document.getElementById("model-select").value = model;
-        }
-        
-        // 當使用者切換模型時，記住他的選擇
-        document.getElementById("model-select").addEventListener("change", (e) => {
-            localStorage.setItem("gemini_model", e.target.value);
-        });
     };
 
     function saveKey() {
@@ -258,7 +260,13 @@
         if(!key) return alert("請輸入 Key");
         localStorage.setItem("gemini_key_v2", key);
         document.getElementById("setup-card").style.display = "none";
-        alert("Key 已儲存！");
+        alert("API Key 已儲存！");
+    }
+
+    // 自動儲存模型選擇
+    function saveModelPref() {
+        const model = document.getElementById("model-select").value;
+        localStorage.setItem("gemini_model", model);
     }
 
     function showSettings() {
@@ -272,11 +280,8 @@
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            const previewBox = document.getElementById("preview-box");
-            const img = document.getElementById("img-preview");
-            img.src = e.target.result;
-            previewBox.style.display = "block";
-            
+            document.getElementById("preview-box").style.display = "block";
+            document.getElementById("img-preview").src = e.target.result;
             document.getElementById("error-msg").style.display = "none";
             document.getElementById("scan-btn").disabled = false;
             document.getElementById("scan-btn").style.opacity = "1";
@@ -320,7 +325,8 @@
     async function processImage() {
         const file = document.getElementById("file-input").files[0];
         const key = localStorage.getItem("gemini_key_v2");
-        const model = document.getElementById("model-select").value; // 直接從畫面上拿選好的模型
+        // 直接從下拉選單拿值，保證是最新的
+        const model = document.getElementById("model-select").value; 
         const errorDiv = document.getElementById("error-msg");
         
         if(!file) return alert("請選圖片");
@@ -376,6 +382,9 @@
             
             if (data.error) {
                 let msg = data.error.message;
+                if (msg.includes("not found")) {
+                    throw new Error(`模型 ${model} 暫時無法使用，請試試下拉選單裡的其他模型！`);
+                }
                 throw new Error(`API 錯誤: ${msg}`);
             }
 
@@ -401,12 +410,11 @@
         } catch(e) {
             console.error(e);
             errorDiv.style.display = "block";
-            // 提示更明確
-            errorDiv.innerHTML = `<strong>⚠️ 發生錯誤：</strong><br>${e.message}<br><br>👉 <strong>請嘗試切換上方的「AI 模型」並直接重試！</strong>`;
+            errorDiv.innerHTML = `<strong>⚠️ 發生錯誤：</strong><br>${e.message}`;
         } finally {
             btn.disabled = false;
             spinner.style.display = "none";
-            btnText.innerText = "🤖 開始辨識";
+            btnText.innerText = "🤖 AI 辨識";
         }
     }
 
