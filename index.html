@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ning & Hsiang 記帳 (Notion手動版)</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 20px;
+            max-width: 600px; margin: 0 auto;
+            line-height: 1.5;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+        
+        /* 輸入與按鈕 */
+        input, select {
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
+            box-sizing: border-box; font-size: 16px; background: #f9fafb; outline: none;
+        }
+        input:focus, select:focus { border-color: var(--primary); }
+
+        button {
+            width: 100%; padding: 12px; border: none; border-radius: 10px;
+            font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            display: flex; justify-content: center; align-items: center; gap: 6px;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; border: 1px solid #ddd; color: #666; margin-top: 10px; }
+        .btn-danger { background: #fee2e2; color: #ef4444; width: auto; padding: 8px 12px; }
+
+        /* 項目列表 */
+        .item-row {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        .row-top { display: flex; gap: 8px; }
+        .row-bottom { display: flex; gap: 8px; }
+        
+        /* 結算區塊 */
+        .result-box {
+            background: #1f2937;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        .result-row {
+            display: flex; justify-content: space-between;
+            margin-bottom: 8px; font-size: 0.9em; color: #d1d5db;
+        }
+        .result-final {
+            border-top: 1px solid #374151;
+            margin-top: 15px;
+            padding-top: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--yellow);
+            text-align: center;
+        }
+
+        /* 彙整清單樣式 (讓你好抄寫) */
+        .summary-list {
+            margin-top: 15px;
+            border-top: 1px dashed #4b5563;
+            padding-top: 15px;
+        }
+        .summary-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #374151;
+        }
+        .summary-item:last-child { border-bottom: none; }
+        .sum-header { color: #93c5fd; font-weight: bold; display: flex; justify-content: space-between; }
+        .sum-items { color: #d1d5db; font-size: 0.9em; margin-top: 4px; line-height: 1.4; }
+
+        .hidden { display: none; }
+        
+        /* 上傳區塊 */
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8fafc;
+        }
+        #img-preview { max-width: 100%; border-radius: 8px; margin-top: 15px; display: none; }
+        
+        /* 載入動畫 */
+        .spinner {
+            width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; display: none;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- API Key 設定 -->
+    <div class="card" id="setup-card">
+        <h3>🔑 設定 API Key</h3>
+        <input type="password" id="api-key" placeholder="貼上 Gemini API Key (AIza...)">
+        <button onclick="saveKey()" class="btn-primary" style="margin-top:10px;">儲存並開始</button>
+    </div>
+
+    <!-- 上傳區 -->
+    <div class="card">
+        <h3>📸 1. 上傳收據</h3>
+        <label class="upload-area">
+            <i class="ph ph-camera" style="font-size: 32px; color: #94a3b8;"></i>
+            <div style="color: #64748b; margin-top: 5px;">點此拍照或選圖</div>
+            <input type="file" id="file-input" accept="image/*" style="display:none">
+        </label>
+        <img id="img-preview">
+        
+        <button onclick="processImage()" class="btn-primary" id="scan-btn" disabled style="margin-top: 15px; opacity: 0.5;">
+            <span class="spinner" id="spinner"></span>
+            <span id="btn-text">🤖 AI 辨識品項</span>
+        </button>
+
+        <button onclick="loadDemo()" class="btn-outline" style="font-size: 13px; padding: 8px;">
+            🧪 載入測試資料
+        </button>
+    </div>
+
+    <!-- 編輯與結算 -->
+    <div id="result-area" class="hidden">
+        <div class="card">
+            <h3>📝 2. 確認清單</h3>
+            <div id="items-list"></div>
+            <button onclick="addNewRow()" class="btn-outline">+ 新增一筆</button>
+        </div>
+
+        <div class="card">
+            <h3>💰 3. 結算面板</h3>
+            <div class="result-box">
+                <!-- 基本數字 -->
+                <div class="result-row"><span>總金額</span><span id="sum-total">$0</span></div>
+                <div class="result-row"><span>Ning 成本</span><span id="sum-my-cost">$0</span></div>
+                <div class="result-row"><span>Hsiang 成本</span><span id="sum-his-cost">$0</span></div>
+
+                <!-- 彙整顯示區 (新功能) -->
+                <div class="summary-list" id="visual-summary">
+                    <!-- 這裡會顯示整理好的資料給你看 -->
+                </div>
+
+                <!-- 最終結算 -->
+                <div class="result-final" id="final-settlement">結算中...</div>
+            </div>
+
+            <button onclick="copyResult()" class="btn-primary" style="background: var(--green); margin-top: 15px;">
+                📋 複製 (彙整文字版)
+            </button>
+        </div>
+    </div>
+
+<script>
+    const CATEGORIES = [
+        "🏠 居住", "🍽️ 飲食", "🚗 8510", "🚌 交通", "🎮 娛樂", 
+        "💊 醫療", "💸 雜支", "✈️ 旅遊", "🐱 帕布", "📦 其他"
+    ];
+
+    const SPLIT_TYPES = [
+        { val: "his_pay_split", text: "Hsiang / 2" },
+        { val: "his_pay_for_me", text: "Hsiang 墊" },
+        { val: "his_pay_his_use", text: "Hsiang" },
+        { val: "my_pay_split", text: "Ning / 2" },
+        { val: "my_pay_for_him", text: "Ning 墊" },
+        { val: "my_pay_my_use", text: "Ning" }
+    ];
+
+    window.onload = () => {
+        const key = localStorage.getItem("gemini_key_v2");
+        if(key) {
+            document.getElementById("api-key").value = key;
+            document.getElementById("setup-card").style.display = "none";
+        }
+    };
+
+    function saveKey() {
+        const key = document.getElementById("api-key").value;
+        if(!key) return alert("請輸入 Key");
+        localStorage.setItem("gemini_key_v2", key);
+        document.getElementById("setup-card").style.display = "none";
+        alert("設定完成！");
+    }
+
+    document.getElementById("file-input").onchange = (e) => {
+        const file = e.target.files[0];
+        if(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById("img-preview").src = e.target.result;
+                document.getElementById("img-preview").style.display = "block";
+                const btn = document.getElementById("scan-btn");
+                btn.disabled = false;
+                btn.style.opacity = "1";
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    async function processImage() {
+        const file = document.getElementById("file-input").files[0];
+        const key = localStorage.getItem("gemini_key_v2");
+        
+        if(!file) return alert("請選圖片");
+        if(!key) return alert("請先輸入 API Key");
+
+        const btn = document.getElementById("scan-btn");
+        const spinner = document.getElementById("spinner");
+        const btnText = document.getElementById("btn-text");
+        
+        btn.disabled = true;
+        spinner.style.display = "inline-block";
+        btnText.innerText = " AI 辨識中...";
+
+        try {
+            const base64 = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = () => r(reader.result.split(',')[1]);
+                reader.readAsDataURL(file);
+            });
+
+            const catString = JSON.stringify(CATEGORIES);
+            
+            const prompt = `
+            你是一個記帳助手。請分析這張發票/收據。
+            1. 提取所有品項名稱 (n) 和價格 (p)。
+            2. 根據品項名稱，從以下列表中選擇一個最適合的分類 (c)：${catString}。
+            3. 如果無法確定，分類請選 "📦 其他"。
+            4. 回傳純 JSON 陣列，不要 Markdown。
+            `;
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: file.type, data: base64 } }] }]
+                })
+            });
+
+            const data = await res.json();
+            let text = data.candidates[0].content.parts[0].text;
+            text = text.replace(/```json|```/g, "").trim(); 
+            const items = JSON.parse(text);
+
+            renderItems(items);
+            document.getElementById("result-area").classList.remove("hidden");
+            document.getElementById("result-area").scrollIntoView({behavior: "smooth"});
+
+        } catch(e) {
+            alert("辨識失敗：" + e.message);
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+            spinner.style.display = "none";
+            btnText.innerText = "🤖 AI 辨識品項";
+        }
+    }
+
+    function loadDemo() {
+        const demo = [
+            {n: "Costco 牛肉捲", p: 89, c: "🍽️ 飲食", type: "my_pay_split"},
+            {n: "蛤蠣濃湯", p: 79, c: "🍽️ 飲食", type: "my_pay_split"},
+            {n: "帕布的罐罐", p: 599, c: "🐱 帕布", type: "his_pay_split"},
+            {n: "Hsiang的遊戲片", p: 1200, c: "🎮 娛樂", type: "his_pay_his_use"},
+            {n: "8510 加油", p: 1000, c: "🚗 8510", type: "my_pay_for_him"}
+        ];
+        renderItems(demo);
+        document.getElementById("result-area").classList.remove("hidden");
+        document.getElementById("result-area").scrollIntoView({behavior: "smooth"});
+    }
+
+    function renderItems(items) {
+        const list = document.getElementById("items-list");
+        list.innerHTML = "";
+        items.forEach(i => addItem(i.n, i.p, i.c, i.type || "my_pay_split"));
+        calc();
+    }
+
+    function addItem(name, price, category = "📦 其他", type = "my_pay_split") {
+        const list = document.getElementById("items-list");
+        const div = document.createElement("div");
+        div.className = "item-row";
+        
+        div.innerHTML = `
+            <div class="row-top">
+                <input value="${name}" placeholder="品項" style="flex:2">
+                <input type="number" value="${price}" oninput="calc()" placeholder="$" style="flex:1; text-align:right">
+            </div>
+            <div class="row-bottom">
+                <select style="flex:1.2" class="cat-select">
+                    ${CATEGORIES.map(c => `<option ${c === category ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+                <select style="flex:1.8" onchange="calc()" class="split-select">
+                    ${SPLIT_TYPES.map(t => `<option value="${t.val}" ${t.val===type?'selected':''}>${t.text}</option>`).join('')}
+                </select>
+                <button class="btn-danger" onclick="this.parentElement.parentElement.remove();calc()">
+                    <i class="ph ph-trash"></i>
+                </button>
+            </div>
+        `;
+        list.appendChild(div);
+    }
+
+    function addNewRow() { addItem("", "", "📦 其他"); }
+
+    function calc() {
+        let total = 0, ningCost = 0, hsiangCost = 0, hsiangOwesNing = 0;
+        
+        // 彙整資料結構
+        let summaryData = {};
+        SPLIT_TYPES.forEach(t => summaryData[t.val] = { text: t.text, sum: 0, items: [] });
+
+        document.querySelectorAll(".item-row").forEach(row => {
+            const n = row.querySelector("input").value;
+            const p = Number(row.querySelector("input[type=number]").value) || 0;
+            const splitType = row.querySelector(".split-select").value;
+
+            total += p;
+
+            // 累積彙整資料
+            if (n && summaryData[splitType]) {
+                summaryData[splitType].sum += p;
+                summaryData[splitType].items.push(n);
+            }
+
+            // 成本計算
+            switch(splitType) {
+                case "my_pay_split": 
+                    ningCost += p/2; hsiangCost += p/2; hsiangOwesNing += p/2; break;
+                case "his_pay_split": 
+                    ningCost += p/2; hsiangCost += p/2; hsiangOwesNing -= p/2; break;
+                case "his_pay_for_me": 
+                    ningCost += p; hsiangOwesNing -= p; break;
+                case "my_pay_for_him": 
+                    hsiangCost += p; hsiangOwesNing += p; break;
+                case "my_pay_my_use": 
+                    ningCost += p; break;
+                case "his_pay_his_use": 
+                    hsiangCost += p; break;
+            }
+        });
+
+        // 顯示基本金額
+        document.getElementById("sum-total").innerText = "$" + Math.round(total);
+        document.getElementById("sum-my-cost").innerText = "$" + Math.round(ningCost);
+        document.getElementById("sum-his-cost").innerText = "$" + Math.round(hsiangCost);
+
+        // 顯示結算文字
+        const finalDiv = document.getElementById("final-settlement");
+        const finalVal = Math.round(hsiangOwesNing);
+        if (finalVal > 0) {
+            finalDiv.innerText = `結算：Hsiang 給 Ning $${finalVal}`;
+            finalDiv.style.color = "#4ade80"; 
+        } else if (finalVal < 0) {
+            finalDiv.innerText = `結算：Ning 給 Hsiang $${Math.abs(finalVal)}`;
+            finalDiv.style.color = "#f87171"; 
+        } else {
+            finalDiv.innerText = "結算：互不相欠";
+            finalDiv.style.color = "#fbbf24";
+        }
+
+        // --- 顯示視覺化彙整 (For Notion 手動輸入) ---
+        const visualDiv = document.getElementById("visual-summary");
+        visualDiv.innerHTML = ""; // 清空
+
+        SPLIT_TYPES.forEach(type => {
+            const data = summaryData[type.val];
+            if (data.items.length > 0) {
+                // 這裡產生每一行的 HTML
+                const itemHTML = `
+                    <div class="summary-item">
+                        <div class="sum-header">
+                            <span>${data.text}</span>
+                            <span>$${data.sum}</span>
+                        </div>
+                        <div class="sum-items">${data.items.join(", ")}</div>
+                    </div>
+                `;
+                visualDiv.innerHTML += itemHTML;
+            }
+        });
+    }
+
+    // --- 複製功能 (保留 Tab 格式給 Google Sheets，以防萬一) ---
+    function copyResult() {
+        let outputText = "";
+        let hasData = false;
+
+        // 我們直接重新抓一次畫面上的彙整結果來組字串，保證一致
+        let summaryData = {};
+        SPLIT_TYPES.forEach(t => summaryData[t.val] = { text: t.text, sum: 0, items: [] });
+        
+        document.querySelectorAll(".item-row").forEach(row => {
+            const n = row.querySelector("input").value.trim();
+            const p = Number(row.querySelector("input[type=number]").value) || 0;
+            const splitType = row.querySelector(".split-select").value;
+            if(n && summaryData[splitType]) {
+                summaryData[splitType].sum += p;
+                summaryData[splitType].items.push(n);
+                hasData = true;
+            }
+        });
+
+        if(!hasData) return alert("沒有資料可以複製喔");
+
+        SPLIT_TYPES.forEach(type => {
+            const data = summaryData[type.val];
+            if (data.items.length > 0) {
+                // 格式：分類 [TAB] 總金額 [TAB] 品項
+                outputText += `${data.text}\t${data.sum}\t${data.items.join(", ")}\n`;
+            }
+        });
+
+        // 執行複製
+        const textArea = document.createElement('textarea');
+        textArea.value = outputText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert("✅ 已複製！\n(格式：分類 總額 品項)");
+        } catch (err) {
+            alert("❌ 複製失敗");
+        }
+        document.body.removeChild(textArea);
+    }
+</script>
+</body>
+</html>
