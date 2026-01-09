@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ning & Hsiang 智慧記帳 V5</title>
+    <title>Ning & Hsiang 智慧記帳 V6 (可編輯)</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
@@ -21,7 +21,7 @@
             background: var(--bg); color: var(--text);
             margin: 0; padding: 15px;
             max-width: 600px; margin: 0 auto;
-            padding-bottom: 100px;
+            padding-bottom: 120px;
         }
 
         /* 標題與設定按鈕 */
@@ -33,7 +33,7 @@
             display: none; background: #fff; padding: 20px; border-radius: 12px; 
             border: 2px solid #fed7aa; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; }
+        .settings-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; }
         
         /* 模型偵測結果區 */
         #model-list { 
@@ -70,13 +70,25 @@
         .tag { padding: 6px 12px; background: #f3f4f6; border-radius: 15px; font-size: 12px; cursor: pointer; border: 1px solid #eee; }
         .tag.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
 
-        /* 清單 */
-        .item-card { background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .price { font-weight: bold; }
-        .sub { font-size: 12px; color: #888; }
+        /* 清單編輯卡片 (重要修改) */
+        .item-card { 
+            background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;
+        }
+        .edit-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .edit-input { 
+            padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px; 
+            outline: none; background: #fff;
+        }
+        .edit-input:focus { border-color: var(--primary); }
+        
+        .edit-select {
+            padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; 
+            background: #f9fafb; outline: none;
+        }
 
         /* 底部 */
-        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.98); padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 999; }
         
         /* 錯誤訊息 */
         #error-box { background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 10px; display: none; word-break: break-all; }
@@ -92,7 +104,7 @@
     <!-- 1. 設定區 (核心功能) -->
     <div id="api-settings">
         <div style="font-weight:bold; margin-bottom:5px;">Gemini API Key:</div>
-        <input type="password" id="api-key" placeholder="貼上 Key">
+        <input type="password" id="api-key" class="settings-input" placeholder="貼上 Key">
         
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
             <div style="font-weight:bold;">使用模型: <span id="current-model" style="color:var(--primary)">尚未設定</span></div>
@@ -127,10 +139,10 @@
     <div id="view-manual" style="display:none;">
         <div class="manual-tags" id="tags-area"></div>
         <div style="display:flex; gap:8px; margin-bottom:8px;">
-            <input type="text" id="m-name" placeholder="品項" style="flex:2">
-            <input type="number" id="m-price" placeholder="$" style="flex:1">
+            <input type="text" id="m-name" class="settings-input" placeholder="品項" style="flex:2; margin-bottom:0;">
+            <input type="number" id="m-price" class="settings-input" placeholder="$" style="flex:1; margin-bottom:0;">
         </div>
-        <select id="m-split" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ddd;">
+        <select id="m-split" class="settings-input" style="margin-bottom:10px;">
             <option value="my_pay_split">Ning / 2 (平分)</option>
             <option value="his_pay_split">Hsiang / 2 (平分)</option>
             <option value="my_pay_for_him">Ning 墊 (算他的)</option>
@@ -150,7 +162,7 @@
             <div style="font-size:12px; color:#666;">總計 <span id="total-val" style="font-weight:bold; color:black;">$0</span></div>
             <div id="settle-val" style="font-weight:bold; font-size:14px;">互不相欠</div>
         </div>
-        <button class="btn btn-green" style="width:auto; padding:8px 15px;" onclick="copyData()">複製</button>
+        <button class="btn btn-green" style="width:auto; padding:8px 15px;" onclick="copyData()">複製結果</button>
     </div>
 
 <script>
@@ -164,7 +176,8 @@
     
     let items = [];
     let curCat = "飲食";
-    let selectedModel = localStorage.getItem("nh_model") || "gemini-1.5-flash-001"; // 預設一個保守的
+    // 預設改成 2.5 既然你說可以用，或者讓使用者自己選
+    let selectedModel = localStorage.getItem("nh_model") || "gemini-2.5-flash"; 
 
     window.onload = () => {
         const k = localStorage.getItem("nh_key");
@@ -373,8 +386,9 @@
         let tot=0, nCost=0, hCost=0, owe=0;
 
         items.forEach((i, idx) => {
-            tot += i.price;
-            let p = i.price;
+            tot += Number(i.price);
+            let p = Number(i.price);
+            
             if(i.split.includes("split")) { nCost+=p/2; hCost+=p/2; owe += (i.split.startsWith("my")?p/2:-p/2); }
             else if(i.split.includes("for")) { 
                 if(i.split.startsWith("my")) { hCost+=p; owe+=p; } else { nCost+=p; owe-=p; }
@@ -382,16 +396,27 @@
                 if(i.split.startsWith("my")) nCost+=p; else hCost+=p;
             }
 
-            d.innerHTML = `<div class="item-card">
-                <div>
-                    <div style="font-weight:600">${i.name}</div>
-                    <div class="sub">${i.cat} · ${SPLITS[i.split]}</div>
+            // 產生可編輯卡片
+            const div = document.createElement("div");
+            div.className = "item-card";
+            div.innerHTML = `
+                <div style="width:100%">
+                    <div class="edit-row">
+                        <input type="text" class="edit-input" value="${i.name}" onchange="updateItem(${idx}, 'name', this.value)" style="flex:1; font-weight:600;" placeholder="品項">
+                        <input type="number" class="edit-input" value="${i.price}" onchange="updateItem(${idx}, 'price', this.value)" style="width:70px; text-align:right;" placeholder="$">
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <select class="edit-select" onchange="updateItem(${idx}, 'cat', this.value)" style="flex:1;">
+                            ${CATS.map(c => `<option value="${c}" ${c===i.cat?'selected':''}>${c}</option>`).join('')}
+                        </select>
+                        <select class="edit-select" onchange="updateItem(${idx}, 'split', this.value)" style="flex:1.5;">
+                            ${Object.entries(SPLITS).map(([k,v]) => `<option value="${k}" ${k===i.split?'selected':''}>${v}</option>`).join('')}
+                        </select>
+                        <button onclick="del(${idx})" style="color:#ef4444; border:none; background:none; padding:4px;"><i class="ph ph-trash" style="font-size:18px;"></i></button>
+                    </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span class="price">$${i.price}</span>
-                    <button onclick="del(${idx})" style="color:red; border:none; background:none;">x</button>
-                </div>
-            </div>` + d.innerHTML;
+            `;
+            d.prepend(div);
         });
 
         document.getElementById("total-val").innerText = "$"+Math.round(tot);
@@ -402,6 +427,12 @@
         else { set.innerText="互不相欠"; set.style.color="orange"; }
     }
 
+    function updateItem(idx, field, val) {
+        if(field === 'price') val = Number(val);
+        items[idx][field] = val;
+        saveRender();
+    }
+
     function del(i) { if(confirm("刪除?")) { items.splice(i,1); saveRender(); } }
 
     function copyData() {
@@ -410,7 +441,7 @@
         ["his_pay_split","his_pay_for_me","his_pay_his_use","my_pay_split","my_pay_for_him","my_pay_my_use"].forEach(k=>{
             sum[k] = {t: SPLITS[k], v:0, i:[]};
         });
-        items.forEach(i=>{ if(sum[i.split]) { sum[i.split].v+=i.price; sum[i.split].i.push(i.name); } });
+        items.forEach(i=>{ if(sum[i.split]) { sum[i.split].v+=Number(i.price); sum[i.split].i.push(i.name); } });
         
         let txt = "";
         Object.values(sum).forEach(o=>{
