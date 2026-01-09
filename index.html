@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ning & Hsiang 終極記帳</title>
+    <title>Ning & Hsiang 終極記帳 V4 (診斷版)</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
@@ -43,8 +43,8 @@
             border: 1px solid rgba(0,0,0,0.05);
         }
 
-        /* API 設定區 (預設隱藏，點擊顯示) */
-        #api-settings { display: none; margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #fed7aa; }
+        /* API 設定區 */
+        #api-settings { display: none; margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 12px; border: 2px solid #fed7aa; }
         
         /* 📸 AI 上傳區 */
         .upload-area {
@@ -109,22 +109,44 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         
         /* 錯誤提示 */
-        #ai-error { color: #ef4444; font-size: 13px; margin-top: 8px; display: none; background: #fee2e2; padding: 8px; border-radius: 6px; }
+        #ai-error { 
+            color: #7f1d1d; font-size: 12px; margin-top: 8px; display: none; 
+            background: #fecaca; padding: 10px; border-radius: 6px; 
+            word-break: break-all; white-space: pre-wrap; font-family: monospace;
+        }
+        
+        .label { font-size: 12px; color: #6b7280; margin-bottom: 4px; display: block; font-weight: 600; }
+        .test-btn { background: #4b5563; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 5px;}
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3>Ning & Hsiang 記帳</h3>
-        <button onclick="toggleSettings()" style="background:none; border:none; color:#6b7280; font-size:12px; text-decoration:underline; cursor:pointer;">設定 API Key</button>
+        <h3>Ning & Hsiang 記帳 V4</h3>
+        <button onclick="toggleSettings()" style="background:none; border:none; color:#6b7280; font-size:12px; text-decoration:underline; cursor:pointer;">設定 & 診斷</button>
     </div>
 
     <!-- API 設定區 -->
     <div id="api-settings">
-        <div style="font-size:12px; margin-bottom:5px; font-weight:bold;">Gemini API Key (需為 New Project):</div>
+        <span class="label">Gemini API Key:</span>
         <input type="password" id="api-key-input" placeholder="貼上 AIza 開頭的 Key">
-        <button onclick="saveKey()" style="margin-top:8px; padding:8px; width:100%; background:#333; color:white; border:none; border-radius:6px;">儲存金鑰</button>
-        <div style="font-size:11px; color:#666; margin-top:5px;">* 如果報錯，請務必去 Google AI Studio 建立一個 <span style="color:red">新專案 (New Project)</span> 的 Key。</div>
+        
+        <span class="label" style="margin-top:10px;">AI 模型選擇:</span>
+        <select id="model-select" style="margin-bottom:5px;" onchange="checkCustomModel()">
+            <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (預設)</option>
+            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash Latest</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+            <option value="custom">✍️ 自定義模型名稱...</option>
+        </select>
+        
+        <input type="text" id="custom-model-input" placeholder="例如: gemini-1.5-flash-001" style="display:none; margin-bottom:10px;">
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="testConnection()" class="test-btn" style="flex:1;">🔧 測試純文字連線</button>
+            <button onclick="saveKey()" style="flex:2; padding:8px; background:#333; color:white; border:none; border-radius:6px; cursor:pointer;">儲存設定</button>
+        </div>
+        <div id="test-result" style="font-size:11px; margin-top:8px; color:#666;"></div>
     </div>
 
     <!-- 模式切換 -->
@@ -154,13 +176,15 @@
         <button id="scan-btn" class="btn-action btn-primary" onclick="processImage()" style="margin-top:10px; display:none;">
             <span id="scan-text">🚀 開始辨識</span>
         </button>
+        
+        <div style="text-align:center; margin-top:10px; font-size:12px; color:#9ca3af;">
+            如果 AI 失敗，請按上方切換到「手動輸入」
+        </div>
     </div>
 
     <!-- 🖐️ 手動模式 -->
     <div id="view-manual" class="card" style="display:none;">
-        <!-- 快速分類 -->
         <div class="manual-grid" id="cat-chips"></div>
-        
         <div class="input-row">
             <input type="text" id="m-name" placeholder="品項名稱" style="flex:2">
             <input type="number" id="m-price" placeholder="$" style="flex:1">
@@ -181,9 +205,7 @@
     </div>
 
     <!-- 📝 清單列表 -->
-    <div class="list-container" id="items-container">
-        <!-- 項目會長在這裡 -->
-    </div>
+    <div class="list-container" id="items-container"></div>
 
     <!-- 底部結算 -->
     <div class="bottom-bar">
@@ -198,17 +220,10 @@
 
 <script>
     // --- 資料設定 ---
-    const CATEGORIES = [
-        "飲食", "居住", "8510", "交通", "娛樂", "醫療", "雜支", "旅遊", "帕布", "其他"
-    ];
-    
+    const CATEGORIES = ["飲食", "居住", "8510", "交通", "娛樂", "醫療", "雜支", "旅遊", "帕布", "其他"];
     const SPLIT_MAP = {
-        "his_pay_split": "Hsiang / 2",
-        "his_pay_for_me": "Hsiang 墊",
-        "his_pay_his_use": "Hsiang",
-        "my_pay_split": "Ning / 2",
-        "my_pay_for_him": "Ning 墊",
-        "my_pay_my_use": "Ning"
+        "his_pay_split": "Hsiang / 2", "his_pay_for_me": "Hsiang 墊", "his_pay_his_use": "Hsiang",
+        "my_pay_split": "Ning / 2", "my_pay_for_him": "Ning 墊", "my_pay_my_use": "Ning"
     };
 
     let items = [];
@@ -217,17 +232,19 @@
     // --- 初始化 ---
     window.onload = () => {
         const key = localStorage.getItem("gemini_key_v2");
+        const model = localStorage.getItem("gemini_model_v2") || "gemini-1.5-flash";
+        
         if(key) document.getElementById("api-key-input").value = key;
         else document.getElementById("api-settings").style.display = "block";
 
+        const select = document.getElementById("model-select");
+        const options = Array.from(select.options).map(o => o.value);
+        if (options.includes(model)) select.value = model;
+        else { select.value = "custom"; document.getElementById("custom-model-input").style.display = "block"; document.getElementById("custom-model-input").value = model; }
+
         renderCatChips();
-        
-        // 載入上次未完成的
         const saved = localStorage.getItem("nh_items");
-        if(saved) {
-            items = JSON.parse(saved);
-            renderList();
-        }
+        if(saved) { items = JSON.parse(saved); renderList(); }
     };
 
     function toggleSettings() {
@@ -235,29 +252,66 @@
         el.style.display = el.style.display === "none" ? "block" : "none";
     }
 
-    function saveKey() {
+    function checkCustomModel() {
+        const val = document.getElementById("model-select").value;
+        const input = document.getElementById("custom-model-input");
+        input.style.display = val === "custom" ? "block" : "none";
+        if(val === "custom") input.focus();
+    }
+
+    function getKeyAndModel() {
         const key = document.getElementById("api-key-input").value.trim();
+        let model = document.getElementById("model-select").value;
+        if (model === "custom") model = document.getElementById("custom-model-input").value.trim();
+        return { key, model };
+    }
+
+    function saveKey() {
+        const { key, model } = getKeyAndModel();
         if(!key) return alert("請輸入 Key");
         localStorage.setItem("gemini_key_v2", key);
-        alert("Key 已儲存！");
+        localStorage.setItem("gemini_model_v2", model);
+        alert(`設定已儲存！\n模型: ${model}`);
         document.getElementById("api-settings").style.display = "none";
+    }
+
+    // --- 診斷功能 ---
+    async function testConnection() {
+        const { key, model } = getKeyAndModel();
+        const resDiv = document.getElementById("test-result");
+        if(!key) return alert("請先輸入 Key");
+        
+        resDiv.innerHTML = `<span class="spinner" style="display:inline-block; border-color:#666; width:10px; height:10px;"></span> 測試中...`;
+        
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: "Hello" }] }] })
+            });
+            const data = await res.json();
+            if(data.error) {
+                resDiv.innerHTML = `<span style="color:red">❌ 失敗: ${data.error.message}</span>`;
+            } else if(data.candidates) {
+                resDiv.innerHTML = `<span style="color:green">✅ 成功！API 暢通，模型可用。</span>`;
+            } else {
+                resDiv.innerHTML = `<span style="color:orange">⚠️ 怪怪的: ${JSON.stringify(data)}</span>`;
+            }
+        } catch(e) {
+            resDiv.innerHTML = `<span style="color:red">❌ 網路錯誤: ${e.message}</span>`;
+        }
     }
 
     function switchTab(mode) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(`tab-${mode}`).classList.add('active');
-        
         document.getElementById('view-ai').style.display = mode === 'ai' ? 'block' : 'none';
         document.getElementById('view-manual').style.display = mode === 'manual' ? 'block' : 'none';
     }
 
-    // --- 手動輸入邏輯 ---
     function renderCatChips() {
-        const div = document.getElementById("cat-chips");
-        div.innerHTML = CATEGORIES.map(c => 
-            `<div class="cat-chip ${c === currentManualCat ? 'active' : ''}" onclick="setManualCat('${c}')">
-                ${c}
-            </div>`
+        document.getElementById("cat-chips").innerHTML = CATEGORIES.map(c => 
+            `<div class="cat-chip ${c === currentManualCat ? 'active' : ''}" onclick="setManualCat('${c}')">${c}</div>`
         ).join("");
     }
 
@@ -271,19 +325,14 @@
         const name = document.getElementById("m-name").value.trim();
         const price = Number(document.getElementById("m-price").value);
         const split = document.getElementById("m-split").value;
-
-        if(!name || !price) return alert("請輸入名稱和金額");
-
+        if(!name || !price) return alert("請輸入資料");
         items.push({ name, price, cat: currentManualCat, split });
         saveAndRender();
-        
-        // 清空輸入
         document.getElementById("m-name").value = "";
         document.getElementById("m-price").value = "";
         document.getElementById("m-name").focus();
     }
 
-    // --- AI 辨識邏輯 ---
     function handleFile(input) {
         if(input.files && input.files[0]) {
             const reader = new FileReader();
@@ -297,7 +346,6 @@
         }
     }
 
-    // 圖片壓縮
     function compressImage(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -307,19 +355,13 @@
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 1024; // 限制寬度
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
+                    const MAX_WIDTH = 800; // 再縮小一點保平安
+                    let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    resolve(dataUrl.split(',')[1]);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
                 };
             };
         });
@@ -327,23 +369,21 @@
 
     async function processImage() {
         const file = document.getElementById("file-input").files[0];
-        const key = localStorage.getItem("gemini_key_v2");
+        const { key, model } = getKeyAndModel();
         const errorEl = document.getElementById("ai-error");
         
         if(!key) return alert("請先設定 API Key");
 
         const btn = document.getElementById("scan-btn");
         btn.disabled = true;
-        btn.innerHTML = `<div class="spinner"></div> 正在讀取收據...`;
+        btn.innerHTML = `<div class="spinner"></div> 辨識中...`;
         errorEl.style.display = "none";
 
         try {
             const base64 = await compressImage(file);
             const catString = JSON.stringify(CATEGORIES);
-            const prompt = `請分析這張收據。規則：1.辨識所有品項名稱(n)和價格(p)。2.折扣請視為負數項目。3.從這些分類中選擇(c): ${catString}。4.無法確定選"其他"。5.回傳純JSON Array。`;
+            const prompt = `請分析這張收據。規則：1.辨識所有品項(n)和價格(p)。2.折扣請視為負數。3.從分類(c)選擇: ${catString}。4.回傳純JSON Array。`;
 
-            // 使用最穩定的 gemini-1.5-flash
-            const model = "gemini-1.5-flash";
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -355,43 +395,36 @@
             const data = await res.json();
             
             if (data.error) {
-                if (data.error.message.includes("not found")) {
-                    throw new Error("API Key 設定有誤。請去 Google AI Studio 建立一個【New Project】的新 Key。舊專案的 Key 無法使用此模型。");
-                }
-                throw new Error(data.error.message);
+                // 顯示詳細錯誤
+                throw new Error(`API 回傳錯誤 (${data.error.code}): ${data.error.message}`);
             }
 
-            if (!data.candidates || !data.candidates[0]) throw new Error("AI 無法辨識圖片內容");
+            if (!data.candidates || !data.candidates[0]) {
+                throw new Error(`AI 無法辨識 (Candidates Empty)。\n原始回應: ${JSON.stringify(data)}`);
+            }
 
             let text = data.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
-            if (text.startsWith('[') && !text.endsWith(']')) text += ']'; // 修復截斷
+            if (text.startsWith('[') && !text.endsWith(']')) text += ']'; 
             
             const newItems = JSON.parse(text);
             
-            // 將 AI 結果加入清單 (預設分類給 Ning/2，你可以手動改)
             newItems.forEach(i => {
-                items.push({
-                    name: i.n,
-                    price: i.p,
-                    cat: i.c || "其他",
-                    split: "my_pay_split" // 預設值
-                });
+                items.push({ name: i.n, price: i.p, cat: i.c || "其他", split: "my_pay_split" });
             });
 
             saveAndRender();
-            alert(`成功辨識 ${newItems.length} 個項目！請往下確認。`);
+            alert(`成功！抓到 ${newItems.length} 筆資料。`);
 
         } catch (e) {
             console.error(e);
             errorEl.style.display = "block";
-            errorEl.innerText = "錯誤: " + e.message;
+            errorEl.innerText = e.message;
         } finally {
             btn.disabled = false;
             btn.innerHTML = `<span id="scan-text">🚀 開始辨識</span>`;
         }
     }
 
-    // --- 渲染清單 ---
     function saveAndRender() {
         localStorage.setItem("nh_items", JSON.stringify(items));
         renderList();
@@ -400,12 +433,10 @@
     function renderList() {
         const div = document.getElementById("items-container");
         div.innerHTML = "";
-        
         let total = 0, ningCost = 0, hsiangCost = 0, hsiangOwes = 0;
 
         items.forEach((item, idx) => {
             total += item.price;
-            // 計算
             const p = item.price;
             switch(item.split) {
                 case "my_pay_split": ningCost+=p/2; hsiangCost+=p/2; hsiangOwes+=p/2; break;
@@ -434,64 +465,29 @@
             div.prepend(row);
         });
 
-        // 總結
         document.getElementById("sum-total").innerText = "$" + Math.round(total);
         const finalDiv = document.getElementById("final-settle");
         const val = Math.round(hsiangOwes);
-        if(val > 0) {
-            finalDiv.innerText = `Hsiang 給 Ning $${val}`;
-            finalDiv.style.color = "#10b981";
-        } else if(val < 0) {
-            finalDiv.innerText = `Ning 給 Hsiang $${Math.abs(val)}`;
-            finalDiv.style.color = "#ef4444";
-        } else {
-            finalDiv.innerText = "互不相欠";
-            finalDiv.style.color = "#f59e0b";
-        }
+        if(val > 0) { finalDiv.innerText = `Hsiang 給 Ning $${val}`; finalDiv.style.color = "#10b981"; }
+        else if(val < 0) { finalDiv.innerText = `Ning 給 Hsiang $${Math.abs(val)}`; finalDiv.style.color = "#ef4444"; }
+        else { finalDiv.innerText = "互不相欠"; finalDiv.style.color = "#f59e0b"; }
     }
 
-    function updateSplit(idx, val) {
-        items[idx].split = val;
-        saveAndRender();
-    }
+    function updateSplit(idx, val) { items[idx].split = val; saveAndRender(); }
+    function delItem(idx) { if(confirm("刪除？")) { items.splice(idx, 1); saveAndRender(); } }
 
-    function delItem(idx) {
-        if(confirm("刪除此項目？")) {
-            items.splice(idx, 1);
-            saveAndRender();
-        }
-    }
-
-    // --- 複製 ---
     function copyResult() {
         if(items.length===0) return alert("沒資料");
         let summary = {};
-        // 初始化順序
         ["his_pay_split", "his_pay_for_me", "his_pay_his_use", "my_pay_split", "my_pay_for_him", "my_pay_my_use"].forEach(k => {
             summary[k] = { text: SPLIT_MAP[k], sum: 0, items: [] };
         });
-
-        items.forEach(i => {
-            if(summary[i.split]) {
-                summary[i.split].sum += i.price;
-                summary[i.split].items.push(i.name);
-            }
-        });
-
+        items.forEach(i => { if(summary[i.split]) { summary[i.split].sum += i.price; summary[i.split].items.push(i.name); } });
         let text = "";
-        Object.values(summary).forEach(d => {
-            if(d.items.length > 0) {
-                text += `${d.text}\t${d.sum}\t${d.items.join(", ")}\n`;
-            }
-        });
-
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        alert("✅ 複製成功 (彙整版)");
+        Object.values(summary).forEach(d => { if(d.items.length > 0) text += `${d.text}\t${d.sum}\t${d.items.join(", ")}\n`; });
+        const ta = document.createElement('textarea'); ta.value = text;
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        alert("✅ 複製成功");
     }
 </script>
 </body>
