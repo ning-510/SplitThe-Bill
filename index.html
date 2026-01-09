@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ning & Hsiang 終極記帳 V4 (診斷版)</title>
+    <title>Ning & Hsiang 智慧記帳 V5</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
             --primary: #2563eb;
-            --primary-light: #eff6ff;
             --bg: #f3f4f6;
             --card: #ffffff;
             --text: #1f2937;
@@ -18,476 +17,409 @@
             --border: #e5e7eb;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
             margin: 0; padding: 15px;
             max-width: 600px; margin: 0 auto;
             padding-bottom: 100px;
         }
 
-        /* 頂部功能切換 */
-        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
-        .tab-btn {
-            flex: 1; padding: 10px; border: none; border-radius: 10px;
-            font-weight: bold; font-size: 14px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            background: #e5e7eb; color: #6b7280;
-        }
-        .tab-btn.active { background: var(--primary); color: white; }
+        /* 標題與設定按鈕 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .config-btn { background: none; border: none; color: #6b7280; font-size: 13px; text-decoration: underline; cursor: pointer; }
 
-        /* 卡片共用樣式 */
-        .card {
-            background: var(--card); border-radius: 16px; padding: 15px;
-            margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            border: 1px solid rgba(0,0,0,0.05);
+        /* 設定區塊 */
+        #api-settings { 
+            display: none; background: #fff; padding: 20px; border-radius: 12px; 
+            border: 2px solid #fed7aa; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
-
-        /* API 設定區 */
-        #api-settings { display: none; margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 12px; border: 2px solid #fed7aa; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; }
         
-        /* 📸 AI 上傳區 */
+        /* 模型偵測結果區 */
+        #model-list { 
+            margin-top: 10px; display: flex; flex-direction: column; gap: 5px; 
+            max-height: 200px; overflow-y: auto; background: #f9fafb; padding: 10px; border-radius: 8px;
+        }
+        .model-chip {
+            padding: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 6px;
+            font-size: 12px; cursor: pointer; display: flex; justify-content: space-between;
+        }
+        .model-chip:hover { border-color: var(--primary); color: var(--primary); }
+        .model-chip.selected { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* 上傳區 */
         .upload-area {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; height: 120px;
-            border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc;
-            color: #64748b; cursor: pointer; box-sizing: border-box; transition: all 0.2s;
+            background: #fff; border: 2px dashed #cbd5e1; border-radius: 12px;
+            height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #64748b; cursor: pointer; margin-bottom: 15px;
         }
-        .upload-area:active { border-color: var(--primary); background: var(--primary-light); }
-        #img-preview-box { display: none; margin-top: 10px; text-align: center; }
-        #img-preview { max-width: 100%; max-height: 200px; border-radius: 8px; }
+        #img-preview { max-width: 100%; max-height: 200px; display: none; margin: 10px auto; border-radius: 8px; }
 
-        /* 🖐️ 手動輸入區 */
-        .manual-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-        .cat-chip {
-            padding: 6px 12px; border-radius: 20px; font-size: 13px; background: #f3f4f6; border: 1px solid #e5e7eb; cursor: pointer; display: flex; align-items: center; gap: 4px;
-        }
-        .cat-chip.active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); font-weight: bold; }
-        
-        .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        input, select {
-            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
-            box-sizing: border-box; font-size: 16px; background: #fff; outline: none;
-        }
-        input:focus { border-color: var(--primary); }
-
-        /* 動作按鈕 */
-        .btn-action {
-            width: 100%; padding: 12px; border: none; border-radius: 10px;
-            font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s;
-            display: flex; justify-content: center; align-items: center; gap: 8px;
-        }
+        /* 按鈕樣式 */
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; gap: 5px; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-green { background: var(--green); color: white; }
-        .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
-
-        /* 清單與結算 */
-        .list-container { margin-top: 20px; }
-        .item-card {
-            background: white; padding: 12px; border-radius: 12px; border-bottom: 1px solid #f3f4f6;
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px;
-        }
-        .item-left { display: flex; flex-direction: column; }
-        .item-title { font-weight: 600; font-size: 15px; }
-        .item-sub { font-size: 12px; color: #6b7280; }
-        .item-price { font-weight: bold; font-size: 16px; }
-
-        /* 底部固定結算 */
-        .bottom-bar {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: rgba(255,255,255,0.95); backdrop-filter: blur(5px);
-            border-top: 1px solid #e5e7eb; padding: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 99;
-        }
-        .total-info { font-size: 13px; color: #4b5563; }
-        .final-settle { font-weight: bold; font-size: 15px; color: var(--text); }
-
-        /* 載入動畫 */
-        .spinner { width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-outline { background: white; border: 1px solid #ddd; color: #555; margin-top: 10px; }
         
-        /* 錯誤提示 */
-        #ai-error { 
-            color: #7f1d1d; font-size: 12px; margin-top: 8px; display: none; 
-            background: #fecaca; padding: 10px; border-radius: 6px; 
-            word-break: break-all; white-space: pre-wrap; font-family: monospace;
-        }
+        /* 手動輸入 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab { flex: 1; padding: 10px; text-align: center; background: #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; }
+        .tab.active { background: var(--primary); color: white; }
+
+        .manual-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .tag { padding: 6px 12px; background: #f3f4f6; border-radius: 15px; font-size: 12px; cursor: pointer; border: 1px solid #eee; }
+        .tag.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
+
+        /* 清單 */
+        .item-card { background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .price { font-weight: bold; }
+        .sub { font-size: 12px; color: #888; }
+
+        /* 底部 */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         
-        .label { font-size: 12px; color: #6b7280; margin-bottom: 4px; display: block; font-weight: 600; }
-        .test-btn { background: #4b5563; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 5px;}
+        /* 錯誤訊息 */
+        #error-box { background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 10px; display: none; word-break: break-all; }
     </style>
 </head>
 <body>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3>Ning & Hsiang 記帳 V4</h3>
-        <button onclick="toggleSettings()" style="background:none; border:none; color:#6b7280; font-size:12px; text-decoration:underline; cursor:pointer;">設定 & 診斷</button>
+    <div class="header">
+        <h3>Ning & Hsiang 記帳</h3>
+        <button class="config-btn" onclick="toggleSettings()">設定 API & 模型</button>
     </div>
 
-    <!-- API 設定區 -->
+    <!-- 1. 設定區 (核心功能) -->
     <div id="api-settings">
-        <span class="label">Gemini API Key:</span>
-        <input type="password" id="api-key-input" placeholder="貼上 AIza 開頭的 Key">
+        <div style="font-weight:bold; margin-bottom:5px;">Gemini API Key:</div>
+        <input type="password" id="api-key" placeholder="貼上 Key">
         
-        <span class="label" style="margin-top:10px;">AI 模型選擇:</span>
-        <select id="model-select" style="margin-bottom:5px;" onchange="checkCustomModel()">
-            <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (預設)</option>
-            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash Latest</option>
-            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
-            <option value="custom">✍️ 自定義模型名稱...</option>
-        </select>
-        
-        <input type="text" id="custom-model-input" placeholder="例如: gemini-1.5-flash-001" style="display:none; margin-bottom:10px;">
-
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button onclick="testConnection()" class="test-btn" style="flex:1;">🔧 測試純文字連線</button>
-            <button onclick="saveKey()" style="flex:2; padding:8px; background:#333; color:white; border:none; border-radius:6px; cursor:pointer;">儲存設定</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <div style="font-weight:bold;">使用模型: <span id="current-model" style="color:var(--primary)">尚未設定</span></div>
+            <button onclick="detectModels()" style="background:#4b5563; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;">🔍 偵測可用模型</button>
         </div>
-        <div id="test-result" style="font-size:11px; margin-top:8px; color:#666;"></div>
+        
+        <div id="model-loader" style="display:none; font-size:12px; color:#666;">正在詢問 Google...</div>
+        <div id="model-list"></div>
+
+        <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:15px;">儲存設定</button>
     </div>
 
-    <!-- 模式切換 -->
+    <!-- 2. 分頁切換 -->
     <div class="tabs">
-        <button class="tab-btn active" id="tab-ai" onclick="switchTab('ai')">
-            <i class="ph ph-camera"></i> AI 辨識
-        </button>
-        <button class="tab-btn" id="tab-manual" onclick="switchTab('manual')">
-            <i class="ph ph-keyboard"></i> 手動輸入
-        </button>
+        <div class="tab active" id="tab-ai" onclick="setTab('ai')">📷 AI 拍照</div>
+        <div class="tab" id="tab-manual" onclick="setTab('manual')">🖐️ 手動輸入</div>
     </div>
 
-    <!-- 📸 AI 模式 -->
-    <div id="view-ai" class="card">
+    <!-- 3. AI 模式 -->
+    <div id="view-ai">
         <label class="upload-area">
-            <i class="ph ph-camera-plus" style="font-size:32px; color:#9ca3af; margin-bottom:5px;"></i>
-            <div style="font-size:14px; color:#6b7280;">點此拍收據 / 選照片</div>
-            <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFile(this)">
+            <i class="ph ph-camera" style="font-size:32px; margin-bottom:5px;"></i>
+            <div>上傳收據</div>
+            <input type="file" id="file-in" accept="image/*" style="display:none" onchange="previewImg(this)">
         </label>
-        
-        <div id="img-preview-box">
-            <img id="img-preview">
-        </div>
-
-        <div id="ai-error"></div>
-
-        <button id="scan-btn" class="btn-action btn-primary" onclick="processImage()" style="margin-top:10px; display:none;">
-            <span id="scan-text">🚀 開始辨識</span>
-        </button>
-        
-        <div style="text-align:center; margin-top:10px; font-size:12px; color:#9ca3af;">
-            如果 AI 失敗，請按上方切換到「手動輸入」
-        </div>
+        <img id="img-preview">
+        <div id="error-box"></div>
+        <button class="btn btn-primary" id="scan-btn" onclick="runAI()" style="display:none;">🚀 開始辨識</button>
     </div>
 
-    <!-- 🖐️ 手動模式 -->
-    <div id="view-manual" class="card" style="display:none;">
-        <div class="manual-grid" id="cat-chips"></div>
-        <div class="input-row">
-            <input type="text" id="m-name" placeholder="品項名稱" style="flex:2">
+    <!-- 4. 手動模式 -->
+    <div id="view-manual" style="display:none;">
+        <div class="manual-tags" id="tags-area"></div>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input type="text" id="m-name" placeholder="品項" style="flex:2">
             <input type="number" id="m-price" placeholder="$" style="flex:1">
         </div>
-        <div class="input-row">
-            <select id="m-split" style="width:100%">
-                <option value="his_pay_split">Hsiang / 2 (他付平分)</option>
-                <option value="his_pay_for_me">Hsiang 墊 (算妳的)</option>
-                <option value="his_pay_his_use">Hsiang (他自己用)</option>
-                <option value="my_pay_split" selected>Ning / 2 (妳付平分)</option>
-                <option value="my_pay_for_him">Ning 墊 (算他的)</option>
-                <option value="my_pay_my_use">Ning (妳自己用)</option>
-            </select>
-        </div>
-        <button class="btn-action btn-primary" onclick="manualAdd()">
-            <i class="ph ph-plus"></i> 加入清單
-        </button>
+        <select id="m-split" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ddd;">
+            <option value="my_pay_split">Ning / 2 (平分)</option>
+            <option value="his_pay_split">Hsiang / 2 (平分)</option>
+            <option value="my_pay_for_him">Ning 墊 (算他的)</option>
+            <option value="his_pay_for_me">Hsiang 墊 (算妳的)</option>
+            <option value="my_pay_my_use">Ning 自用</option>
+            <option value="his_pay_his_use">Hsiang 自用</option>
+        </select>
+        <button class="btn btn-primary" onclick="addManual()">加入</button>
     </div>
 
-    <!-- 📝 清單列表 -->
-    <div class="list-container" id="items-container"></div>
+    <!-- 5. 清單 -->
+    <div id="list-area" style="margin-top:20px;"></div>
 
-    <!-- 底部結算 -->
-    <div class="bottom-bar">
+    <!-- 6. 底部 -->
+    <div class="footer">
         <div>
-            <div class="total-info">總計 <span id="sum-total" style="font-weight:bold; color:#000;">$0</span></div>
-            <div class="final-settle" id="final-settle">互不相欠</div>
+            <div style="font-size:12px; color:#666;">總計 <span id="total-val" style="font-weight:bold; color:black;">$0</span></div>
+            <div id="settle-val" style="font-weight:bold; font-size:14px;">互不相欠</div>
         </div>
-        <button class="btn-action btn-green" onclick="copyResult()" style="width:auto; padding:8px 16px; font-size:14px;">
-            <i class="ph ph-copy"></i> 複製
-        </button>
+        <button class="btn btn-green" style="width:auto; padding:8px 15px;" onclick="copyData()">複製</button>
     </div>
 
 <script>
-    // --- 資料設定 ---
-    const CATEGORIES = ["飲食", "居住", "8510", "交通", "娛樂", "醫療", "雜支", "旅遊", "帕布", "其他"];
-    const SPLIT_MAP = {
-        "his_pay_split": "Hsiang / 2", "his_pay_for_me": "Hsiang 墊", "his_pay_his_use": "Hsiang",
-        "my_pay_split": "Ning / 2", "my_pay_for_him": "Ning 墊", "my_pay_my_use": "Ning"
+    // 資料
+    const CATS = ["飲食", "居住", "8510", "交通", "娛樂", "醫療", "雜支", "旅遊", "帕布", "其他"];
+    const SPLITS = {
+        "my_pay_split": "Ning/2", "his_pay_split": "Hsiang/2",
+        "my_pay_for_him": "Ning墊", "his_pay_for_me": "Hsiang墊",
+        "my_pay_my_use": "Ning", "his_pay_his_use": "Hsiang"
     };
-
+    
     let items = [];
-    let currentManualCat = "飲食";
+    let curCat = "飲食";
+    let selectedModel = localStorage.getItem("nh_model") || "gemini-1.5-flash-001"; // 預設一個保守的
 
-    // --- 初始化 ---
     window.onload = () => {
-        const key = localStorage.getItem("gemini_key_v2");
-        const model = localStorage.getItem("gemini_model_v2") || "gemini-1.5-flash";
+        const k = localStorage.getItem("nh_key");
+        if(k) {
+            document.getElementById("api-key").value = k;
+            document.getElementById("current-model").innerText = selectedModel;
+        } else {
+            document.getElementById("api-settings").style.display = "block";
+        }
         
-        if(key) document.getElementById("api-key-input").value = key;
-        else document.getElementById("api-settings").style.display = "block";
-
-        const select = document.getElementById("model-select");
-        const options = Array.from(select.options).map(o => o.value);
-        if (options.includes(model)) select.value = model;
-        else { select.value = "custom"; document.getElementById("custom-model-input").style.display = "block"; document.getElementById("custom-model-input").value = model; }
-
-        renderCatChips();
-        const saved = localStorage.getItem("nh_items");
+        // 載入舊資料
+        const saved = localStorage.getItem("nh_data");
         if(saved) { items = JSON.parse(saved); renderList(); }
+        
+        renderTags();
     };
 
     function toggleSettings() {
         const el = document.getElementById("api-settings");
-        el.style.display = el.style.display === "none" ? "block" : "none";
+        el.style.display = el.style.display==="none" ? "block" : "none";
     }
 
-    function checkCustomModel() {
-        const val = document.getElementById("model-select").value;
-        const input = document.getElementById("custom-model-input");
-        input.style.display = val === "custom" ? "block" : "none";
-        if(val === "custom") input.focus();
+    // --- 核心：模型偵測 ---
+    async function detectModels() {
+        const key = document.getElementById("api-key").value.trim();
+        const listDiv = document.getElementById("model-list");
+        const loader = document.getElementById("model-loader");
+        
+        if(!key) return alert("請先填入 API Key");
+        
+        loader.style.display = "block";
+        listDiv.innerHTML = "";
+
+        try {
+            // 呼叫 Google List Models API
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+            const data = await res.json();
+
+            loader.style.display = "none";
+
+            if(data.error) {
+                listDiv.innerHTML = `<div style="color:red; font-size:12px;">偵測失敗: ${data.error.message}</div>`;
+                return;
+            }
+
+            if(data.models) {
+                // 過濾出可以用 generateContent 的模型
+                const validModels = data.models.filter(m => 
+                    m.supportedGenerationMethods.includes("generateContent") && 
+                    (m.name.includes("gemini") || m.name.includes("flash"))
+                );
+
+                if(validModels.length === 0) {
+                    listDiv.innerHTML = "<div>找不到可用模型，請檢查 Key 是否有權限。</div>";
+                    return;
+                }
+
+                listDiv.innerHTML = validModels.map(m => {
+                    const shortName = m.name.replace("models/", "");
+                    return `<div class="model-chip ${shortName===selectedModel?'selected':''}" onclick="pickModel('${shortName}')">
+                        <span>${shortName}</span>
+                        <span>v</span>
+                    </div>`;
+                }).join("");
+            }
+        } catch(e) {
+            loader.style.display = "none";
+            listDiv.innerHTML = `<div style="color:red;">網路錯誤: ${e.message}</div>`;
+        }
     }
 
-    function getKeyAndModel() {
-        const key = document.getElementById("api-key-input").value.trim();
-        let model = document.getElementById("model-select").value;
-        if (model === "custom") model = document.getElementById("custom-model-input").value.trim();
-        return { key, model };
+    function pickModel(name) {
+        selectedModel = name;
+        document.getElementById("current-model").innerText = name;
+        // 更新 UI 顯示選中狀態
+        document.querySelectorAll(".model-chip").forEach(el => {
+            el.classList.remove("selected");
+            if(el.innerText.includes(name)) el.classList.add("selected");
+        });
     }
 
-    function saveKey() {
-        const { key, model } = getKeyAndModel();
+    function saveSettings() {
+        const key = document.getElementById("api-key").value.trim();
         if(!key) return alert("請輸入 Key");
-        localStorage.setItem("gemini_key_v2", key);
-        localStorage.setItem("gemini_model_v2", model);
-        alert(`設定已儲存！\n模型: ${model}`);
+        localStorage.setItem("nh_key", key);
+        localStorage.setItem("nh_model", selectedModel);
+        alert(`設定完成！\n已鎖定模型: ${selectedModel}`);
         document.getElementById("api-settings").style.display = "none";
     }
 
-    // --- 診斷功能 ---
-    async function testConnection() {
-        const { key, model } = getKeyAndModel();
-        const resDiv = document.getElementById("test-result");
-        if(!key) return alert("請先輸入 Key");
-        
-        resDiv.innerHTML = `<span class="spinner" style="display:inline-block; border-color:#666; width:10px; height:10px;"></span> 測試中...`;
-        
-        try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: "Hello" }] }] })
-            });
-            const data = await res.json();
-            if(data.error) {
-                resDiv.innerHTML = `<span style="color:red">❌ 失敗: ${data.error.message}</span>`;
-            } else if(data.candidates) {
-                resDiv.innerHTML = `<span style="color:green">✅ 成功！API 暢通，模型可用。</span>`;
-            } else {
-                resDiv.innerHTML = `<span style="color:orange">⚠️ 怪怪的: ${JSON.stringify(data)}</span>`;
-            }
-        } catch(e) {
-            resDiv.innerHTML = `<span style="color:red">❌ 網路錯誤: ${e.message}</span>`;
-        }
-    }
-
-    function switchTab(mode) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`tab-${mode}`).classList.add('active');
-        document.getElementById('view-ai').style.display = mode === 'ai' ? 'block' : 'none';
-        document.getElementById('view-manual').style.display = mode === 'manual' ? 'block' : 'none';
-    }
-
-    function renderCatChips() {
-        document.getElementById("cat-chips").innerHTML = CATEGORIES.map(c => 
-            `<div class="cat-chip ${c === currentManualCat ? 'active' : ''}" onclick="setManualCat('${c}')">${c}</div>`
-        ).join("");
-    }
-
-    function setManualCat(cat) {
-        currentManualCat = cat;
-        renderCatChips();
-        document.getElementById("m-name").focus();
-    }
-
-    function manualAdd() {
-        const name = document.getElementById("m-name").value.trim();
-        const price = Number(document.getElementById("m-price").value);
-        const split = document.getElementById("m-split").value;
-        if(!name || !price) return alert("請輸入資料");
-        items.push({ name, price, cat: currentManualCat, split });
-        saveAndRender();
-        document.getElementById("m-name").value = "";
-        document.getElementById("m-price").value = "";
-        document.getElementById("m-name").focus();
-    }
-
-    function handleFile(input) {
-        if(input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
+    // --- 圖片處理 ---
+    function previewImg(input) {
+        if(input.files[0]) {
+            const r = new FileReader();
+            r.onload = e => {
                 document.getElementById("img-preview").src = e.target.result;
-                document.getElementById("img-preview-box").style.display = "block";
-                document.getElementById("scan-btn").style.display = "flex";
-                document.getElementById("ai-error").style.display = "none";
+                document.getElementById("img-preview").style.display = "block";
+                document.getElementById("scan-btn").style.display = "block";
+                document.getElementById("error-box").style.display = "none";
             };
-            reader.readAsDataURL(input.files[0]);
+            r.readAsDataURL(input.files[0]);
         }
     }
 
-    function compressImage(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
+    function compress(file) {
+        return new Promise(resolve => {
+            const r = new FileReader();
+            r.readAsDataURL(file);
+            r.onload = e => {
                 const img = new Image();
-                img.src = event.target.result;
+                img.src = e.target.result;
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // 再縮小一點保平安
-                    let width = img.width; let height = img.height;
-                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+                    const cvs = document.createElement('canvas');
+                    const max = 1024;
+                    let w = img.width, h = img.height;
+                    if(w > max) { h *= max/w; w = max; }
+                    cvs.width = w; cvs.height = h;
+                    cvs.getContext('2d').drawImage(img,0,0,w,h);
+                    resolve(cvs.toDataURL('image/jpeg', 0.8).split(',')[1]);
                 };
             };
         });
     }
 
-    async function processImage() {
-        const file = document.getElementById("file-input").files[0];
-        const { key, model } = getKeyAndModel();
-        const errorEl = document.getElementById("ai-error");
-        
-        if(!key) return alert("請先設定 API Key");
-
+    async function runAI() {
+        const f = document.getElementById("file-in").files[0];
+        const k = localStorage.getItem("nh_key");
+        const m = localStorage.getItem("nh_model");
+        const errBox = document.getElementById("error-box");
         const btn = document.getElementById("scan-btn");
+
+        if(!k) return toggleSettings();
+        
         btn.disabled = true;
-        btn.innerHTML = `<div class="spinner"></div> 辨識中...`;
-        errorEl.style.display = "none";
+        btn.innerText = `呼叫 ${m}...`;
+        errBox.style.display = "none";
 
         try {
-            const base64 = await compressImage(file);
-            const catString = JSON.stringify(CATEGORIES);
-            const prompt = `請分析這張收據。規則：1.辨識所有品項(n)和價格(p)。2.折扣請視為負數。3.從分類(c)選擇: ${catString}。4.回傳純JSON Array。`;
-
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+            const b64 = await compress(f);
+            const prompt = `分析收據，列出所有品項(n)和價格(p)，折扣用負數。分類(c)選: ${JSON.stringify(CATS)}。回傳純JSON Array。`;
+            
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${k}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }]
+                    contents: [{parts:[{text: prompt}, {inline_data: {mime_type: "image/jpeg", data: b64}}]}]
                 })
             });
 
-            const data = await res.json();
+            const d = await res.json();
             
-            if (data.error) {
-                // 顯示詳細錯誤
-                throw new Error(`API 回傳錯誤 (${data.error.code}): ${data.error.message}`);
-            }
+            if(d.error) throw new Error(d.error.message);
+            if(!d.candidates) throw new Error("無回應");
 
-            if (!data.candidates || !data.candidates[0]) {
-                throw new Error(`AI 無法辨識 (Candidates Empty)。\n原始回應: ${JSON.stringify(data)}`);
-            }
-
-            let text = data.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
-            if (text.startsWith('[') && !text.endsWith(']')) text += ']'; 
+            let txt = d.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
+            if(txt.startsWith("[") && !txt.endsWith("]")) txt += "]";
             
-            const newItems = JSON.parse(text);
+            const newItems = JSON.parse(txt);
+            newItems.forEach(i => items.push({name: i.n, price: i.p, cat: i.c||"其他", split:"my_pay_split"}));
             
-            newItems.forEach(i => {
-                items.push({ name: i.n, price: i.p, cat: i.c || "其他", split: "my_pay_split" });
-            });
+            saveRender();
+            alert("成功！");
 
-            saveAndRender();
-            alert(`成功！抓到 ${newItems.length} 筆資料。`);
-
-        } catch (e) {
-            console.error(e);
-            errorEl.style.display = "block";
-            errorEl.innerText = e.message;
+        } catch(e) {
+            errBox.style.display = "block";
+            errBox.innerText = `錯誤: ${e.message}\n\n建議：點擊上方「設定」->「偵測可用模型」，換一個模型試試。`;
         } finally {
             btn.disabled = false;
-            btn.innerHTML = `<span id="scan-text">🚀 開始辨識</span>`;
+            btn.innerText = "🚀 開始辨識";
         }
     }
 
-    function saveAndRender() {
-        localStorage.setItem("nh_items", JSON.stringify(items));
+    // --- UI 切換與手動 ---
+    function setTab(t) {
+        document.querySelectorAll(".tab").forEach(e => e.classList.remove("active"));
+        document.getElementById("tab-"+t).classList.add("active");
+        document.getElementById("view-ai").style.display = t==="ai"?"block":"none";
+        document.getElementById("view-manual").style.display = t==="manual"?"block":"none";
+    }
+
+    function renderTags() {
+        const div = document.getElementById("tags-area");
+        div.innerHTML = CATS.map(c => `<div class="tag ${c===curCat?'active':''}" onclick="setCat('${c}')">${c}</div>`).join("");
+    }
+    
+    function setCat(c) { curCat = c; renderTags(); }
+
+    function addManual() {
+        const n = document.getElementById("m-name").value;
+        const p = Number(document.getElementById("m-price").value);
+        if(!n || !p) return;
+        items.push({name:n, price:p, cat:curCat, split: document.getElementById("m-split").value});
+        saveRender();
+        document.getElementById("m-name").value = "";
+        document.getElementById("m-price").value = "";
+    }
+
+    function saveRender() {
+        localStorage.setItem("nh_data", JSON.stringify(items));
         renderList();
     }
 
     function renderList() {
-        const div = document.getElementById("items-container");
-        div.innerHTML = "";
-        let total = 0, ningCost = 0, hsiangCost = 0, hsiangOwes = 0;
+        const d = document.getElementById("list-area");
+        d.innerHTML = "";
+        let tot=0, nCost=0, hCost=0, owe=0;
 
-        items.forEach((item, idx) => {
-            total += item.price;
-            const p = item.price;
-            switch(item.split) {
-                case "my_pay_split": ningCost+=p/2; hsiangCost+=p/2; hsiangOwes+=p/2; break;
-                case "his_pay_split": ningCost+=p/2; hsiangCost+=p/2; hsiangOwes-=p/2; break;
-                case "his_pay_for_me": ningCost+=p; hsiangOwes-=p; break;
-                case "my_pay_for_him": hsiangCost+=p; hsiangOwes+=p; break;
-                case "my_pay_my_use": ningCost+=p; break;
-                case "his_pay_his_use": hsiangCost+=p; break;
+        items.forEach((i, idx) => {
+            tot += i.price;
+            let p = i.price;
+            if(i.split.includes("split")) { nCost+=p/2; hCost+=p/2; owe += (i.split.startsWith("my")?p/2:-p/2); }
+            else if(i.split.includes("for")) { 
+                if(i.split.startsWith("my")) { hCost+=p; owe+=p; } else { nCost+=p; owe-=p; }
+            } else {
+                if(i.split.startsWith("my")) nCost+=p; else hCost+=p;
             }
 
-            const row = document.createElement("div");
-            row.className = "item-card";
-            row.innerHTML = `
-                <div class="item-left">
-                    <span class="item-title">${item.name}</span>
-                    <span class="item-sub">${item.cat}</span>
+            d.innerHTML = `<div class="item-card">
+                <div>
+                    <div style="font-weight:600">${i.name}</div>
+                    <div class="sub">${i.cat} · ${SPLITS[i.split]}</div>
                 </div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                    <span class="item-price">$${item.price}</span>
-                    <select onchange="updateSplit(${idx}, this.value)" style="font-size:12px; padding:4px;">
-                        ${Object.entries(SPLIT_MAP).map(([k,v]) => `<option value="${k}" ${k===item.split?'selected':''}>${v}</option>`).join('')}
-                    </select>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="price">$${i.price}</span>
+                    <button onclick="del(${idx})" style="color:red; border:none; background:none;">x</button>
                 </div>
-                <button onclick="delItem(${idx})" style="background:none; border:none; color:#ef4444; margin-left:10px;"><i class="ph ph-trash"></i></button>
-            `;
-            div.prepend(row);
+            </div>` + d.innerHTML;
         });
 
-        document.getElementById("sum-total").innerText = "$" + Math.round(total);
-        const finalDiv = document.getElementById("final-settle");
-        const val = Math.round(hsiangOwes);
-        if(val > 0) { finalDiv.innerText = `Hsiang 給 Ning $${val}`; finalDiv.style.color = "#10b981"; }
-        else if(val < 0) { finalDiv.innerText = `Ning 給 Hsiang $${Math.abs(val)}`; finalDiv.style.color = "#ef4444"; }
-        else { finalDiv.innerText = "互不相欠"; finalDiv.style.color = "#f59e0b"; }
+        document.getElementById("total-val").innerText = "$"+Math.round(tot);
+        const set = document.getElementById("settle-val");
+        const v = Math.round(owe);
+        if(v>0) { set.innerText = `Hsiang 給 Ning $${v}`; set.style.color="#10b981"; }
+        else if(v<0) { set.innerText = `Ning 給 Hsiang $${Math.abs(v)}`; set.style.color="#ef4444"; }
+        else { set.innerText="互不相欠"; set.style.color="orange"; }
     }
 
-    function updateSplit(idx, val) { items[idx].split = val; saveAndRender(); }
-    function delItem(idx) { if(confirm("刪除？")) { items.splice(idx, 1); saveAndRender(); } }
+    function del(i) { if(confirm("刪除?")) { items.splice(i,1); saveRender(); } }
 
-    function copyResult() {
-        if(items.length===0) return alert("沒資料");
-        let summary = {};
-        ["his_pay_split", "his_pay_for_me", "his_pay_his_use", "my_pay_split", "my_pay_for_him", "my_pay_my_use"].forEach(k => {
-            summary[k] = { text: SPLIT_MAP[k], sum: 0, items: [] };
+    function copyData() {
+        if(items.length===0) return;
+        let sum = {};
+        ["his_pay_split","his_pay_for_me","his_pay_his_use","my_pay_split","my_pay_for_him","my_pay_my_use"].forEach(k=>{
+            sum[k] = {t: SPLITS[k], v:0, i:[]};
         });
-        items.forEach(i => { if(summary[i.split]) { summary[i.split].sum += i.price; summary[i.split].items.push(i.name); } });
-        let text = "";
-        Object.values(summary).forEach(d => { if(d.items.length > 0) text += `${d.text}\t${d.sum}\t${d.items.join(", ")}\n`; });
-        const ta = document.createElement('textarea'); ta.value = text;
-        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-        alert("✅ 複製成功");
+        items.forEach(i=>{ if(sum[i.split]) { sum[i.split].v+=i.price; sum[i.split].i.push(i.name); } });
+        
+        let txt = "";
+        Object.values(sum).forEach(o=>{
+            if(o.i.length>0) txt += `${o.t}\t${o.v}\t${o.i.join(", ")}\n`;
+        });
+        
+        const ta = document.createElement("textarea");
+        ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+        alert("✅ 已複製");
     }
 </script>
 </body>
