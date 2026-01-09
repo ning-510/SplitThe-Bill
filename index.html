@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ning & Hsiang 智慧記帳 V8</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title> 相片辨識記帳 </title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
@@ -16,17 +16,41 @@
             --red: #ef4444;
             --border: #e5e7eb;
         }
+        
+        /* App 佈局核心設定 */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 禁止整頁滑動 */
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: var(--bg); color: var(--text);
-            margin: 0; padding: 15px;
-            max-width: 600px; margin: 0 auto;
-            padding-bottom: 120px;
+            display: flex;
+            flex-direction: column;
+            max-width: 600px;
+            margin: 0 auto;
         }
 
-        /* 標題與設定按鈕 */
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        /* 頂部固定區 */
+        .header { 
+            flex-shrink: 0; /* 不縮放 */
+            padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center; 
+            background: var(--bg);
+            z-index: 10;
+        }
         .config-btn { background: none; border: none; color: #6b7280; font-size: 13px; text-decoration: underline; cursor: pointer; }
+
+        /* 中間可滑動區塊 */
+        .scroll-content {
+            flex: 1; /* 佔滿剩餘空間 */
+            overflow-y: auto; /* 內容過長時垂直滑動 */
+            padding: 0 15px 15px 15px;
+            -webkit-overflow-scrolling: touch; /* iOS 滑動優化 */
+        }
 
         /* 設定區塊 */
         #api-settings { 
@@ -88,12 +112,14 @@
             background: #f9fafb; outline: none;
         }
 
-        /* 底部 */
+        /* 底部固定區 */
         .footer { 
-            position: fixed; bottom: 0; left: 0; right: 0; 
-            background: rgba(255,255,255,0.98); padding: 15px 20px; border-top: 1px solid #eee; 
+            flex-shrink: 0; /* 不縮放 */
+            background: rgba(255,255,255,0.98); padding: 15px 20px; 
+            border-top: 1px solid #eee; 
             display: flex; justify-content: space-between; align-items: center; gap: 10px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 999; 
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); 
+            z-index: 20;
         }
         
         /* 錯誤訊息 */
@@ -103,66 +129,69 @@
 <body>
 
     <div class="header">
-        <h3>Ning & Hsiang 記帳</h3>
+        <h3 style="margin:0;">Ning & Hsiang 記帳</h3>
         <button class="config-btn" onclick="toggleSettings()">設定 API & 模型</button>
     </div>
 
-    <!-- 1. 設定區 (核心功能) -->
-    <div id="api-settings">
-        <div style="font-weight:bold; margin-bottom:5px;">Gemini API Key:</div>
-        <input type="password" id="api-key" class="settings-input" placeholder="貼上 Key">
-        
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <div style="font-weight:bold;">使用模型: <span id="current-model" style="color:var(--primary)">尚未設定</span></div>
-            <button onclick="detectModels()" style="background:#4b5563; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;">🔍 偵測可用模型</button>
+    <!-- 可滑動的內容區塊 -->
+    <div class="scroll-content">
+        <!-- 1. 設定區 (核心功能) -->
+        <div id="api-settings">
+            <div style="font-weight:bold; margin-bottom:5px;">Gemini API Key:</div>
+            <input type="password" id="api-key" class="settings-input" placeholder="貼上 Key">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <div style="font-weight:bold;">使用模型: <span id="current-model" style="color:var(--primary)">尚未設定</span></div>
+                <button onclick="detectModels()" style="background:#4b5563; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;">🔍 偵測可用模型</button>
+            </div>
+            
+            <div id="model-loader" style="display:none; font-size:12px; color:#666;">正在詢問 Google...</div>
+            <div id="model-list"></div>
+
+            <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:15px;">儲存設定</button>
         </div>
-        
-        <div id="model-loader" style="display:none; font-size:12px; color:#666;">正在詢問 Google...</div>
-        <div id="model-list"></div>
 
-        <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:15px;">儲存設定</button>
-    </div>
-
-    <!-- 2. 分頁切換 -->
-    <div class="tabs">
-        <div class="tab active" id="tab-ai" onclick="setTab('ai')">📷 AI 拍照</div>
-        <div class="tab" id="tab-manual" onclick="setTab('manual')">🖐️ 手動輸入</div>
-    </div>
-
-    <!-- 3. AI 模式 -->
-    <div id="view-ai">
-        <label class="upload-area">
-            <i class="ph ph-camera" style="font-size:32px; margin-bottom:5px;"></i>
-            <div>上傳收據 (可連續上傳)</div>
-            <input type="file" id="file-in" accept="image/*" style="display:none" onchange="previewImg(this)">
-        </label>
-        <img id="img-preview">
-        <div id="error-box"></div>
-        <button class="btn btn-primary" id="scan-btn" onclick="runAI()" style="display:none;">🚀 開始辨識</button>
-    </div>
-
-    <!-- 4. 手動模式 -->
-    <div id="view-manual" style="display:none;">
-        <div class="manual-tags" id="tags-area"></div>
-        <div style="display:flex; gap:8px; margin-bottom:8px;">
-            <input type="text" id="m-name" class="settings-input" placeholder="品項" style="flex:2; margin-bottom:0;">
-            <input type="number" id="m-price" class="settings-input" placeholder="$" style="flex:1; margin-bottom:0;">
+        <!-- 2. 分頁切換 -->
+        <div class="tabs">
+            <div class="tab active" id="tab-ai" onclick="setTab('ai')">📷 AI 拍照</div>
+            <div class="tab" id="tab-manual" onclick="setTab('manual')">🖐️ 手動輸入</div>
         </div>
-        <select id="m-split" class="settings-input" style="margin-bottom:10px;">
-            <option value="my_pay_split">Ning / 2 (平分)</option>
-            <option value="his_pay_split">Hsiang / 2 (平分)</option>
-            <option value="my_pay_for_him">Ning 墊 (算他的)</option>
-            <option value="his_pay_for_me">Hsiang 墊 (算妳的)</option>
-            <option value="my_pay_my_use">Ning 自用</option>
-            <option value="his_pay_his_use">Hsiang 自用</option>
-        </select>
-        <button class="btn btn-primary" onclick="addManual()">加入</button>
+
+        <!-- 3. AI 模式 -->
+        <div id="view-ai">
+            <label class="upload-area">
+                <i class="ph ph-camera" style="font-size:32px; margin-bottom:5px;"></i>
+                <div>上傳收據 (可連續上傳)</div>
+                <input type="file" id="file-in" accept="image/*" style="display:none" onchange="previewImg(this)">
+            </label>
+            <img id="img-preview">
+            <div id="error-box"></div>
+            <button class="btn btn-primary" id="scan-btn" onclick="runAI()" style="display:none;">🚀 開始辨識</button>
+        </div>
+
+        <!-- 4. 手動模式 -->
+        <div id="view-manual" style="display:none;">
+            <div class="manual-tags" id="tags-area"></div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="m-name" class="settings-input" placeholder="品項" style="flex:2; margin-bottom:0;">
+                <input type="number" id="m-price" class="settings-input" placeholder="$" style="flex:1; margin-bottom:0;">
+            </div>
+            <select id="m-split" class="settings-input" style="margin-bottom:10px;">
+                <option value="my_pay_split">Ning / 2 (平分)</option>
+                <option value="his_pay_split">Hsiang / 2 (平分)</option>
+                <option value="my_pay_for_him">Ning 墊 (算他的)</option>
+                <option value="his_pay_for_me">Hsiang 墊 (算妳的)</option>
+                <option value="my_pay_my_use">Ning 自用</option>
+                <option value="his_pay_his_use">Hsiang 自用</option>
+            </select>
+            <button class="btn btn-primary" onclick="addManual()">加入</button>
+        </div>
+
+        <!-- 5. 清單 -->
+        <div id="list-area" style="margin-top:20px;"></div>
     </div>
 
-    <!-- 5. 清單 -->
-    <div id="list-area" style="margin-top:20px;"></div>
-
-    <!-- 6. 底部 -->
+    <!-- 6. 底部固定區 -->
     <div class="footer">
         <div style="flex:1;">
             <div style="font-size:12px; color:#666;">總計 <span id="total-val" style="font-weight:bold; color:black;">$0</span></div>
