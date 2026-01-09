@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> 相片辨識記帳 </title>
+    <title>Ning & Hsiang 智慧記帳 V10</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
@@ -95,21 +95,31 @@
         .tag { padding: 6px 12px; background: #f3f4f6; border-radius: 15px; font-size: 12px; cursor: pointer; border: 1px solid #eee; }
         .tag.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
 
-        /* 清單編輯卡片 */
+        /* 清單編輯卡片 (優化版：大按鈕) */
         .item-card { 
-            background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;
+            background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;
         }
-        .edit-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .edit-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        
         .edit-input { 
-            padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px; 
-            outline: none; background: #fff;
+            padding: 12px; /* 加大內距 */
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            font-size: 16px; /* 字體加大 */
+            outline: none; 
+            background: #fff;
         }
         .edit-input:focus { border-color: var(--primary); }
         
         .edit-select {
-            padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; 
-            background: #f9fafb; outline: none;
+            padding: 12px; /* 加大內距 */
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            font-size: 15px; /* 字體加大 */
+            background: #f9fafb; 
+            outline: none;
+            height: 48px; /* 固定高度方便點擊 */
         }
 
         /* 底部固定區 */
@@ -441,7 +451,7 @@
                         <select class="edit-select" onchange="updateItem(${idx}, 'split', this.value)" style="flex:1.5;">
                             ${Object.entries(SPLITS).map(([k,v]) => `<option value="${k}" ${k===i.split?'selected':''}>${v}</option>`).join('')}
                         </select>
-                        <button onclick="del(${idx})" style="color:#ef4444; border:none; background:none; padding:4px;"><i class="ph ph-trash" style="font-size:18px;"></i></button>
+                        <button onclick="del(${idx})" style="color:#ef4444; border:none; background:none; padding:4px;"><i class="ph ph-trash" style="font-size:24px;"></i></button>
                     </div>
                 </div>
             `;
